@@ -36,7 +36,7 @@ class ObjDGCNN(MVXTwoStageDetector):
         if not self.with_pts_bbox:
             return None
 
-        voxels, num_points, coors = self.voxelize(pts)
+        voxels, num_points, coors = self.voxelize(pts) #N* torch.Size([228625, 5])
 
         voxel_features = self.pts_voxel_encoder(voxels, num_points, coors)
         batch_size = coors[-1, 0] + 1

@@ -68,7 +68,7 @@ class Detr3D(MVXTwoStageDetector):
     @auto_fp16(apply_to=('img'), out_fp32=True)
     def extract_feat(self, img, img_metas):
         """Extract features from images and points."""
-        img_feats = self.extract_img_feat(img, img_metas)
+        img_feats = self.extract_img_feat(img, img_metas) #torch.Size([1, 6, 3, 928, 1600])
         return img_feats
 
     def forward_pts_train(self,

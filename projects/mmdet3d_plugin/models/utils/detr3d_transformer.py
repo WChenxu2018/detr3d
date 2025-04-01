@@ -116,7 +116,7 @@ class Detr3DTransformer(BaseModule):
         """
         assert query_embed is not None
         bs = mlvl_feats[0].size(0)
-        query_pos, query = torch.split(query_embed, self.embed_dims , dim=1)
+        query_pos, query = torch.split(query_embed, self.embed_dims , dim=1) #query_embed: torch.Size([900, 512])
         query_pos = query_pos.unsqueeze(0).expand(bs, -1, -1)
         query = query.unsqueeze(0).expand(bs, -1, -1)
         reference_points = self.reference_points(query_pos)
@@ -300,13 +300,13 @@ class Detr3DCrossAtten(BaseModule):
         xavier_init(self.output_proj, distribution='uniform', bias=0.)
 
     def forward(self,
-                query,
-                key,
-                value,
+                query, #torch.Size([1, 900, 256])
+                key, #torch.Size([900, 1, 256])
+                value, #N*[B, C, D, H, W]
                 residual=None,
-                query_pos=None,
+                query_pos=None, #torch.Size([900, 1, 256])
                 key_padding_mask=None,
-                reference_points=None,
+                reference_points=None, #torch.Size([1, 900, 3])
                 spatial_shapes=None,
                 level_start_index=None,
                 **kwargs):
@@ -359,7 +359,7 @@ class Detr3DCrossAtten(BaseModule):
         bs, num_query, _ = query.size()
 
         attention_weights = self.attention_weights(query).view(
-            bs, 1, num_query, self.num_cams, self.num_points, self.num_levels)
+            bs, 1, num_query, self.num_cams, self.num_points, self.num_levels) #torch.Size([1, 1, 900, 6, 1, 4])
         
         reference_points_3d, output, mask = feature_sampling(
             value, reference_points, self.pc_range, kwargs['img_metas'])
@@ -367,15 +367,15 @@ class Detr3DCrossAtten(BaseModule):
         mask = torch.nan_to_num(mask)
 
         attention_weights = attention_weights.sigmoid() * mask
-        output = output * attention_weights
+        output = output * attention_weights #torch.Size([1, 256, 900, 6, 1, 4])
         output = output.sum(-1).sum(-1).sum(-1)
-        output = output.permute(2, 0, 1)
+        output = output.permute(2, 0, 1) 
         
-        output = self.output_proj(output)
+        output = self.output_proj(output)#torch.Size([900, 1, 256])
         # (num_query, bs, embed_dims)
         pos_feat = self.position_encoder(inverse_sigmoid(reference_points_3d)).permute(1, 0, 2)
 
-        return self.dropout(output) + inp_residual + pos_feat
+        return self.dropout(output) + inp_residual + pos_feat #torch.Size([900, 1, 256]) 3d位置加上了2d注意力的信息
 
 
 def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
@@ -419,4 +419,4 @@ def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
         sampled_feats.append(sampled_feat)
     sampled_feats = torch.stack(sampled_feats, -1)
     sampled_feats = sampled_feats.view(B, C, num_query, num_cam,  1, len(mlvl_feats))
-    return reference_points_3d, sampled_feats, mask
+    return reference_points_3d, sampled_feats, mask #torch.Size([1, 900, 3]) torch.Size([1, 256, 900, 6, 1, 4])
